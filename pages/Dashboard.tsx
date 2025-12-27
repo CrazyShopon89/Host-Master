@@ -1,7 +1,17 @@
+
 import React, { useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import StatCard from '../components/StatCard';
-import { Users, DollarSign, AlertCircle, HardDrive, CheckCircle, Wallet } from 'lucide-react';
+import { 
+    Users, 
+    DollarSign, 
+    Euro, 
+    PoundSterling, 
+    IndianRupee, 
+    Wallet, 
+    AlertCircle, 
+    CheckCircle 
+} from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard: React.FC = () => {
@@ -18,7 +28,6 @@ const Dashboard: React.FC = () => {
        return diff > 0 && diff <= 30;
     }).length;
     
-    // Chart Data
     const statusData = [
       { name: 'Paid', value: records.filter(r => r.paymentStatus === 'Paid').length, color: '#10B981' },
       { name: 'Unpaid', value: records.filter(r => r.paymentStatus === 'Unpaid').length, color: '#F59E0B' },
@@ -28,9 +37,14 @@ const Dashboard: React.FC = () => {
     return { totalClients, totalRevenue, overdue, upcomingRenewals, statusData };
   }, [records]);
 
-  // Determine icon based on currency symbol (Bonus aesthetic)
+  // Logic to auto-change the icon based on settings.currency
   const getRevenueIcon = () => {
-      return Wallet;
+      const cur = settings.currency;
+      if (cur === '$') return DollarSign;
+      if (cur === '€') return Euro;
+      if (cur === '£') return PoundSterling;
+      if (cur === '₹') return IndianRupee;
+      return Wallet; // Default fallback
   };
 
   return (
@@ -40,7 +54,6 @@ const Dashboard: React.FC = () => {
         <span className="text-sm text-gray-500">Last updated: Just now</span>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Clients" 
@@ -51,7 +64,7 @@ const Dashboard: React.FC = () => {
         />
         <StatCard 
           title="Expected Revenue" 
-          value={`${settings.currency}${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+          value={`${settings.currency}${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
           icon={getRevenueIcon()} 
           color="green" 
         />
@@ -70,9 +83,7 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Payment Status Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-4">Payment Status Distribution</h3>
           <div className="h-64">
@@ -95,19 +106,10 @@ const Dashboard: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-4 mt-4">
-             {stats.statusData.map(item => (
-                 <div key={item.name} className="flex items-center gap-2">
-                     <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div>
-                     <span className="text-sm text-gray-600">{item.name}</span>
-                 </div>
-             ))}
-          </div>
         </div>
 
-        {/* Storage Usage (Mock) */}
          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Revenue Projection (Next 6 Months)</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Revenue Projection</h3>
           <div className="h-64">
              <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -130,24 +132,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Quick Actions for Renewals */}
-      {stats.upcomingRenewals > 0 && (
-        <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="bg-yellow-100 p-3 rounded-full text-yellow-600">
-                <AlertCircle size={24} />
-            </div>
-            <div>
-                <h3 className="text-lg font-bold text-yellow-800">Attention Required</h3>
-                <p className="text-yellow-700 mt-1">You have {stats.upcomingRenewals} clients with hosting expiring in the next 30 days. Generate invoices now to avoid service interruption.</p>
-                <button className="mt-4 bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors">
-                    Process Renewals
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

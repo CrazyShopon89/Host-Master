@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +13,6 @@ const Login: React.FC = () => {
   const { login, signup, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if user is already logged in
   useEffect(() => {
     if (user) {
       navigate('/');
@@ -28,6 +28,7 @@ const Login: React.FC = () => {
       } else {
         await signup(name, email, password);
       }
+      // Redundant but safe
       navigate('/');
     } catch (error) {
       console.error("Auth error", error);
@@ -39,7 +40,9 @@ const Login: React.FC = () => {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
+      // Demo credentials
       await login('admin@demo.com', 'demo123');
+      // Force navigation immediately
       navigate('/');
     } catch (error) {
       console.error("Demo login error", error);
@@ -61,7 +64,7 @@ const Login: React.FC = () => {
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="text-center text-gray-500 text-sm mb-8">
-            {isLogin ? 'Sign in to manage your hosting clients' : 'Get started with HostMaster AI'}
+            Manage your hosting clients with ease
           </p>
 
           <div className="mb-6">
@@ -69,7 +72,7 @@ const Login: React.FC = () => {
                onClick={handleDemoLogin}
                type="button"
                disabled={loading}
-               className="w-full bg-indigo-50 text-indigo-700 font-medium py-2.5 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border border-indigo-100"
+               className="w-full bg-indigo-50 text-indigo-700 font-medium py-3 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border border-indigo-100 shadow-sm"
              >
                {loading ? (
                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -100,7 +103,7 @@ const Login: React.FC = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
             )}
@@ -113,7 +116,7 @@ const Login: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
@@ -125,14 +128,14 @@ const Login: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white font-medium py-2.5 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+              className="w-full bg-indigo-600 text-white font-medium py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md flex items-center justify-center"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -151,9 +154,6 @@ const Login: React.FC = () => {
               {isLogin ? 'Sign Up' : 'Log In'}
             </button>
           </div>
-        </div>
-        <div className="bg-gray-50 p-4 text-center text-xs text-gray-400">
-          Protected by HostMaster Security
         </div>
       </div>
     </div>

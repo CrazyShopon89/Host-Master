@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import HostingTable from '../components/HostingTable';
@@ -9,7 +10,6 @@ const Clients: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form State
   const initialFormState: Omit<HostingRecord, 'id'> = {
       serialNumber: records.length + 1,
       clientName: '',
@@ -45,24 +45,25 @@ const Clients: React.FC = () => {
       }
   };
 
+  // Automated logic for Renewal Date
   const handlePaymentStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value as 'Paid' | 'Unpaid' | 'Overdue';
     let updatedData = { ...formData, paymentStatus: newStatus };
 
-    // Auto-update renewal date if status changes to Paid
     if (newStatus === 'Paid' && formData.paymentStatus !== 'Paid') {
-        const currentDate = formData.validationDate ? new Date(formData.validationDate) : new Date();
+        // Parse the existing renewal date
+        const currentRenewal = new Date(formData.validationDate);
         
-        // Check for valid date
-        if (!isNaN(currentDate.getTime())) {
-            // Advance by 1 year
-            currentDate.setFullYear(currentDate.getFullYear() + 1);
-            updatedData.validationDate = currentDate.toISOString().split('T')[0];
-
-            // Also update Record Status from Expired to Active if applicable
-            if (updatedData.status === 'Expired' || updatedData.status === 'Suspended') {
-                updatedData.status = 'Active';
-            }
+        if (!isNaN(currentRenewal.getTime())) {
+            // Logic: If status is Paid, extend current renewal date by exactly 1 year
+            currentRenewal.setFullYear(currentRenewal.getFullYear() + 1);
+            updatedData.validationDate = currentRenewal.toISOString().split('T')[0];
+            
+            // Auto-activate the hosting status
+            updatedData.status = 'Active';
+            
+            // Log for debugging
+            console.log(`Auto-renewed ${formData.clientName} to ${updatedData.validationDate}`);
         }
     }
     setFormData(updatedData);
@@ -99,7 +100,6 @@ const Clients: React.FC = () => {
 
       <HostingTable records={records} onEdit={handleEdit} onDelete={handleDelete} />
 
-      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -110,64 +110,53 @@ const Clients: React.FC = () => {
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Basic Info */}
                     <div className="md:col-span-2">
                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Client Details</h3>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Client Name</label>
-                        <input required type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} />
+                        <input required type="text" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Website</label>
-                        <input required type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} />
+                        <input required type="text" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.website} onChange={e => setFormData({...formData, website: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Email</label>
-                        <input required type="email" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                        <input required type="email" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Phone</label>
-                        <input type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                        <input type="text" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                     </div>
 
-                    {/* Hosting Info */}
                      <div className="md:col-span-2 mt-4">
                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Service Details</h3>
                     </div>
                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Storage (GB)</label>
-                        <input type="number" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.storageGB} onChange={e => setFormData({...formData, storageGB: Number(e.target.value)})} />
-                    </div>
-                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Status</label>
-                        <select className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
+                        <select className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
                             <option value="Active">Active</option>
                             <option value="Suspended">Suspended</option>
                             <option value="Expired">Expired</option>
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Setup Date</label>
-                        <input type="date" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.setupDate} onChange={e => setFormData({...formData, setupDate: e.target.value})} />
-                    </div>
-                    <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Renewal Date</label>
-                        <input required type="date" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.validationDate} onChange={e => setFormData({...formData, validationDate: e.target.value})} />
+                        <input required type="date" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.validationDate} onChange={e => setFormData({...formData, validationDate: e.target.value})} />
                     </div>
 
-                     {/* Payment Info */}
                      <div className="md:col-span-2 mt-4">
-                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Billing & Invoice</h3>
+                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Billing</h3>
                     </div>
                      <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Amount ({settings.currency})</label>
-                        <input required type="number" step="0.01" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} />
+                        <input required type="number" step="0.01" className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} />
                     </div>
                      <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Payment Status</label>
                          <select 
-                            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500" 
                             value={formData.paymentStatus} 
                             onChange={handlePaymentStatusChange}
                         >
