@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import StatCard from '../components/StatCard';
@@ -44,7 +43,7 @@ const Dashboard: React.FC = () => {
       if (cur === '€') return Euro;
       if (cur === '£') return PoundSterling;
       if (cur === '₹') return IndianRupee;
-      return Wallet; // Default fallback
+      return Wallet; // Default fallback if currency is custom
   };
 
   return (

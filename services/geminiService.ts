@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { HostingRecord } from "../types";
 
@@ -6,8 +5,14 @@ export const analyzeHostingData = async (
   query: string,
   data: HostingRecord[]
 ): Promise<string> => {
-  // Always initialize with the environment variable as per guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Safe check for API key to prevent browser crashes
+  const apiKey = typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : null;
+
+  if (!apiKey) {
+    return "AI Assistant is currently in demo mode (No API Key detected). Please configure an API key to enable data analysis.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const context = `
     You are an intelligent assistant for HostMaster, a Hosting Management Software.
@@ -32,6 +37,6 @@ export const analyzeHostingData = async (
     return response.text || "I couldn't generate a response.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "I'm having trouble connecting to my brain. Please check your connection or try again later.";
+    return "I encountered an error connecting to the AI service. The rest of the app is working fine!";
   }
 };

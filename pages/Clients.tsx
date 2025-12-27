@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import HostingTable from '../components/HostingTable';
@@ -45,25 +44,25 @@ const Clients: React.FC = () => {
       }
   };
 
-  // Automated logic for Renewal Date
+  // Automated logic for Renewal Date and Status
   const handlePaymentStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value as 'Paid' | 'Unpaid' | 'Overdue';
-    let updatedData = { ...formData, paymentStatus: newStatus };
+    const newPaymentStatus = e.target.value as 'Paid' | 'Unpaid' | 'Overdue';
+    let updatedData = { ...formData, paymentStatus: newPaymentStatus };
 
-    if (newStatus === 'Paid' && formData.paymentStatus !== 'Paid') {
-        // Parse the existing renewal date
+    // When status is set to Paid, automatically increment renewal date by 1 year
+    if (newPaymentStatus === 'Paid' && formData.paymentStatus !== 'Paid') {
         const currentRenewal = new Date(formData.validationDate);
         
         if (!isNaN(currentRenewal.getTime())) {
-            // Logic: If status is Paid, extend current renewal date by exactly 1 year
+            // Add exactly 1 year to the existing date
             currentRenewal.setFullYear(currentRenewal.getFullYear() + 1);
             updatedData.validationDate = currentRenewal.toISOString().split('T')[0];
             
-            // Auto-activate the hosting status
+            // Auto-activate the service status as well
             updatedData.status = 'Active';
             
-            // Log for debugging
-            console.log(`Auto-renewed ${formData.clientName} to ${updatedData.validationDate}`);
+            // Optionally set paid date to today
+            updatedData.paidDate = new Date().toISOString().split('T')[0];
         }
     }
     setFormData(updatedData);
