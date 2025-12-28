@@ -8,7 +8,13 @@ const cors = require('cors');
 const app = express();
 
 const PORT = process.env.PORT || 8080;
-const DB_PATH = path.join(__dirname, 'hostmaster.db');
+
+// Vercel/Serverless Fix: SQLite needs a writable path. 
+// Note: Data in /tmp is NOT persistent across requests on Vercel.
+const isVercel = process.env.VERCEL === '1';
+const DB_PATH = isVercel 
+    ? path.join('/tmp', 'hostmaster.db') 
+    : path.join(__dirname, 'hostmaster.db');
 
 // Middleware
 app.use(compression());
@@ -19,6 +25,10 @@ app.use(express.static(path.join(__dirname)));
 // API Key Integrity Check
 if (!process.env.API_KEY) {
     console.warn('\x1b[33m%s\x1b[0m', '⚠️  WARNING: API_KEY is missing from Environment Variables.');
+}
+
+if (isVercel) {
+    console.warn('\x1b[31m%s\x1b[0m', '🚨 VERCEL DETECTED: SQLite data will NOT persist between sessions. Use a hosted DB for production.');
 }
 
 // Initialize Database
@@ -129,11 +139,16 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
+// SPA Support
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 HostMaster System Active on port ${PORT}`);
-    console.log(`📍 Root Path: ${__dirname}`);
-});
+// Export for Vercel, listen for local
+if (!isVercel) {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 HostMaster Local Server Active on port ${PORT}`);
+    });
+}
+
+module.exports = app;
