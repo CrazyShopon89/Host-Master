@@ -7,40 +7,35 @@ const cors = require('cors');
 const app = express();
 
 const PORT = process.env.PORT || 8080;
+const DB_PATH = path.join(__dirname, 'hostmaster.db');
 
-// Vercel/Serverless Persistence Detection
-const isVercel = process.env.VERCEL === '1';
-const DB_PATH = isVercel 
-    ? path.join('/tmp', 'hostmaster.db') 
-    : path.join(__dirname, 'hostmaster.db');
-
-// Middleware
 app.use(compression());
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
 /**
- * CRITICAL FIX: Explicitly serve .tsx and .ts files as application/javascript
- * This solves the "MIME type mismatch" error in browsers.
+ * FAIL-SAFE MIME HANDLING
+ * Even if .htaccess fails, Node.js will force the correct MIME type here.
  */
 app.use((req, res, next) => {
     if (req.url.endsWith('.tsx') || req.url.endsWith('.ts')) {
         res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
     }
     next();
 });
 
-// Serve static files from the root directory
+// Serve static files
 app.use(express.static(path.join(__dirname), {
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+        const ext = path.extname(filePath);
+        if (ext === '.tsx' || ext === '.ts') {
             res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-            res.setHeader('X-Content-Type-Options', 'nosniff');
         }
-    }
+    },
+    index: 'index.html'
 }));
 
-// Initialize Database
 const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) console.error('❌ Database error:', err.message);
     else console.log('✅ SQLite Database ready');
@@ -65,14 +60,10 @@ db.serialize(() => {
         invoiceStatus TEXT,
         paymentMethod TEXT
     )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        data TEXT
-    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT)`);
 });
 
-// API Routes
+// API Endpoints
 app.get('/api/records', (req, res) => {
     db.all("SELECT * FROM records ORDER BY serialNumber DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -82,7 +73,7 @@ app.get('/api/records', (req, res) => {
 
 app.post('/api/records', (req, res) => {
     const r = req.body;
-    const stmt = db.prepare(`INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const stmt = db.prepare(`INSERT INTO records (id, serialNumber, clientName, website, email, phone, storageGB, setupDate, validationDate, amount, status, invoiceNumber, invoiceDate, paymentStatus, invoiceStatus, paymentMethod) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     stmt.run(r.id, r.serialNumber, r.clientName, r.website, r.email, r.phone, r.storageGB, r.setupDate, r.validationDate, r.amount, r.status, r.invoiceNumber, r.invoiceDate, r.paymentStatus, r.invoiceStatus, r.paymentMethod, function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
@@ -130,19 +121,18 @@ app.post('/api/send-email', async (req, res) => {
             port: config.smtpPort, 
             secure: config.smtpEncryption === 'SSL/TLS',
             auth: { user: config.smtpUser, pass: config.smtpPass },
+            tls: { rejectUnauthorized: false }
         });
         await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Root fallback to index.html for Single Page Application
+// SPA Support
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-if (!isVercel) {
-    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 HostMaster ready on port ${PORT}`));
-}
-
-module.exports = app;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server listening on port ${PORT}`);
+});

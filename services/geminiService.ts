@@ -1,23 +1,16 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { HostingRecord, AppSettings } from "../types";
-
-// Strictly fetch from environment. No hardcoded keys allowed.
-const getApiKey = () => {
-  return typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : null;
-};
 
 export const analyzeHostingData = async (
   query: string,
   data: HostingRecord[]
 ): Promise<string> => {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return "AI Features Disabled: No API Key found in server environment variables. Please configure your API_KEY in cPanel.";
+  if (!process.env.API_KEY) {
+    return "AI Features Disabled: No API Key found in environment.";
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  // Guidelines: Initialize with named parameter
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const context = `
     You are an intelligent assistant for HostMaster.
@@ -35,10 +28,11 @@ export const analyzeHostingData = async (
       model: 'gemini-3-flash-preview',
       contents: context,
     });
+    // Guidelines: Use .text property, not .text() method
     return response.text || "I couldn't generate a response.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "The AI service is currently unavailable. Check your API key and quota.";
+    return "The AI service is currently unavailable.";
   }
 };
 
@@ -46,9 +40,7 @@ export const draftInvoiceEmail = async (
   record: HostingRecord,
   settings: AppSettings
 ): Promise<string> => {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
     return `Subject: Invoice ${record.invoiceNumber || 'Draft'} - ${record.website}
 
 Dear ${record.clientName},
@@ -60,7 +52,7 @@ Regards,
 ${settings.companyName}`;
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
     Draft a professional hosting renewal email.
