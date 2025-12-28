@@ -1,4 +1,3 @@
-
 const express = require('express');
 const path = require('path');
 const compression = require('compression');
@@ -9,30 +8,34 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
+// Vercel/Serverless Persistence Detection
 const isVercel = process.env.VERCEL === '1';
 const DB_PATH = isVercel 
     ? path.join('/tmp', 'hostmaster.db') 
     : path.join(__dirname, 'hostmaster.db');
 
+// Middleware
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
 app.use(cors());
 
-// --- CRITICAL FIX FOR MIME TYPE ERROR ---
-// Captures index.tsx and other source files to serve them as JavaScript
-app.get(['/*.tsx', '/*.ts'], (req, res) => {
-    const filename = req.path.split('/').pop();
-    const filePath = path.join(__dirname, filename);
-    
-    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.sendFile(filePath);
+/**
+ * CRITICAL FIX: Explicitly serve .tsx and .ts files as application/javascript
+ * This solves the "MIME type mismatch" error in browsers.
+ */
+app.use((req, res, next) => {
+    if (req.url.endsWith('.tsx') || req.url.endsWith('.ts')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    }
+    next();
 });
 
+// Serve static files from the root directory
 app.use(express.static(path.join(__dirname), {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
             res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
         }
     }
 }));
@@ -119,6 +122,21 @@ app.post('/api/settings', (req, res) => {
     });
 });
 
+app.post('/api/send-email', async (req, res) => {
+    const { to, subject, body, config } = req.body;
+    try {
+        let transporter = nodemailer.createTransport({
+            host: config.smtpHost, 
+            port: config.smtpPort, 
+            secure: config.smtpEncryption === 'SSL/TLS',
+            auth: { user: config.smtpUser, pass: config.smtpPass },
+        });
+        await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Root fallback to index.html for Single Page Application
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
