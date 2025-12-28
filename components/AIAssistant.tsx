@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, Sparkles } from 'lucide-react';
 import { analyzeHostingData } from '../services/geminiService';
@@ -36,7 +37,7 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="no-print AIAssistant-container">
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
@@ -119,7 +120,7 @@ const AIAssistant: React.FC = () => {
           </p>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

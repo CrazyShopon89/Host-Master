@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { HostingRecord } from '../types';
 import { useData } from '../context/DataContext';
-import { Edit2, Trash2, ExternalLink, FileText, Mail, MoreHorizontal, Download } from 'lucide-react';
+import { Edit2, Trash2, ExternalLink, Mail, Download } from 'lucide-react';
 
 interface HostingTableProps {
   records: HostingRecord[];
@@ -12,7 +13,7 @@ interface HostingTableProps {
 const HostingTable: React.FC<HostingTableProps> = ({ records, onEdit, onDelete }) => {
   const { settings } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Suspended'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Suspended' | 'Expired'>('All');
 
   const filteredRecords = records.filter(record => {
     const matchesSearch = 
@@ -44,9 +45,9 @@ const HostingTable: React.FC<HostingTableProps> = ({ records, onEdit, onDelete }
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
-      <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
         <div className="flex gap-4 items-center flex-1">
            <div className="relative flex-1 max-w-md">
              <input
@@ -66,6 +67,7 @@ const HostingTable: React.FC<HostingTableProps> = ({ records, onEdit, onDelete }
              <option value="All">All Status</option>
              <option value="Active">Active</option>
              <option value="Suspended">Suspended</option>
+             <option value="Expired">Expired</option>
            </select>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
@@ -75,69 +77,73 @@ const HostingTable: React.FC<HostingTableProps> = ({ records, onEdit, onDelete }
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto no-scrollbar">
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Sl.</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Client</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Status</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Renewal</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Storage</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Amount</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Payment</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 text-right">Actions</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Sl.</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Client Info</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Status</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Setup Date</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Renewal Date</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Amount</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Method</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">Payment</th>
+              <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredRecords.length > 0 ? filteredRecords.map((record, index) => (
-              <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
-                <td className="px-6 py-4 text-sm text-gray-500">{record.serialNumber}</td>
+            {filteredRecords.length > 0 ? filteredRecords.map((record) => (
+              <tr key={record.id} className="hover:bg-indigo-50/30 transition-colors group">
+                <td className="px-6 py-4 text-xs text-gray-500">{record.serialNumber}</td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="font-medium text-gray-900">{record.clientName}</span>
+                    <span className="font-semibold text-gray-900 text-sm">{record.clientName}</span>
                     <a href={`https://${record.website}`} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline text-xs flex items-center gap-1">
                       {record.website} <ExternalLink size={10} />
                     </a>
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(record.status)}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${getStatusColor(record.status)}`}>
                     {record.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {record.validationDate}
+                <td className="px-6 py-4 text-xs text-gray-600">
+                  {new Date(record.setupDate).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {record.storageGB} GB
+                <td className="px-6 py-4 text-xs text-gray-600">
+                  {new Date(record.validationDate).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 text-xs font-bold text-gray-900">
                   {settings.currency}{record.amount.toFixed(2)}
                 </td>
-                 <td className="px-6 py-4 text-sm">
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  {record.paymentMethod}
+                </td>
+                 <td className="px-6 py-4 text-xs">
                   <span className={getPaymentStatusColor(record.paymentStatus)}>
                     {record.paymentStatus}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <button title="Send Invoice" className="p-1.5 hover:bg-indigo-100 text-indigo-600 rounded">
-                      <Mail size={16} />
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button title="Email Client" className="p-1.5 hover:bg-indigo-100 text-indigo-600 rounded-md transition-colors">
+                      <Mail size={14} />
                     </button>
-                    <button onClick={() => onEdit(record.id)} title="Edit" className="p-1.5 hover:bg-blue-100 text-blue-600 rounded">
-                      <Edit2 size={16} />
+                    <button onClick={() => onEdit(record.id)} title="Edit Record" className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-md transition-colors">
+                      <Edit2 size={14} />
                     </button>
-                    <button onClick={() => onDelete(record.id)} title="Delete" className="p-1.5 hover:bg-red-100 text-red-600 rounded">
-                      <Trash2 size={16} />
+                    <button onClick={() => onDelete(record.id)} title="Delete Record" className="p-1.5 hover:bg-red-100 text-red-600 rounded-md transition-colors">
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                  No records found matching your criteria.
+                <td colSpan={9} className="px-6 py-12 text-center text-gray-400 text-sm italic">
+                  No records found matching your filters.
                 </td>
               </tr>
             )}

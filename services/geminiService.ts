@@ -1,32 +1,33 @@
+
 import { GoogleGenAI } from "@google/genai";
-import { HostingRecord } from "../types";
+import { HostingRecord, AppSettings } from "../types";
+
+// Strictly fetch from environment. No hardcoded keys allowed.
+const getApiKey = () => {
+  return typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : null;
+};
 
 export const analyzeHostingData = async (
   query: string,
   data: HostingRecord[]
 ): Promise<string> => {
-  // Safe check for API key to prevent browser crashes
-  const apiKey = typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : null;
+  const apiKey = getApiKey();
 
   if (!apiKey) {
-    return "AI Assistant is currently in demo mode (No API Key detected). Please configure an API key to enable data analysis.";
+    return "AI Features Disabled: No API Key found in server environment variables. Please configure your API_KEY in cPanel.";
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
   const context = `
-    You are an intelligent assistant for HostMaster, a Hosting Management Software.
+    You are an intelligent assistant for HostMaster.
     Context:
     - Current Records: ${JSON.stringify(data.slice(0, 50))} 
     - Current Date: ${new Date().toISOString().split('T')[0]}
 
     User Query: ${query}
 
-    Instructions:
-    1. Analyze the provided hosting data to answer accurately.
-    2. If asked for financial summaries, calculate using the 'amount' field.
-    3. If asked for renewal help, identify clients with upcoming 'validationDate'.
-    4. Provide professional, concise markdown responses.
+    Instructions: Analyze data accurately. Use financial amounts. Identify renewals. Concise markdown.
   `;
 
   try {
@@ -37,6 +38,43 @@ export const analyzeHostingData = async (
     return response.text || "I couldn't generate a response.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "I encountered an error connecting to the AI service. The rest of the app is working fine!";
+    return "The AI service is currently unavailable. Check your API key and quota.";
+  }
+};
+
+export const draftInvoiceEmail = async (
+  record: HostingRecord,
+  settings: AppSettings
+): Promise<string> => {
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    return `Subject: Invoice ${record.invoiceNumber || 'Draft'} - ${record.website}
+
+Dear ${record.clientName},
+
+Your hosting renewal for ${record.website} is due on ${record.validationDate}. 
+Total: ${settings.currency}${record.amount.toFixed(2)}.
+
+Regards,
+${settings.companyName}`;
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+    Draft a professional hosting renewal email.
+    Client: ${record.clientName} | Site: ${record.website} | Due: ${record.validationDate} | Total: ${settings.currency}${record.amount.toFixed(2)}
+    Company: ${settings.companyName}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    return response.text || "Failed to generate email.";
+  } catch (error) {
+    return "Error generating AI draft. Using standard template.";
   }
 };

@@ -1,3 +1,4 @@
+
 export interface HostingRecord {
   id: string;
   serialNumber: number;
@@ -48,6 +49,14 @@ export interface AppSettings {
   logoUrl: string;
   themeColor: 'indigo' | 'blue' | 'green' | 'purple' | 'rose' | 'slate';
   fontFamily: 'Inter' | 'Roboto' | 'Poppins';
+  // SMTP Settings
+  smtpHost: string;
+  smtpPort: number;
+  smtpEncryption: 'SSL/TLS' | 'STARTTLS' | 'None';
+  smtpUser: string;
+  smtpPass: string;
+  senderName: string;
+  senderEmail: string;
 }
 
 export interface DropdownOptions {

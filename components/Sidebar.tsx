@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -34,7 +35,7 @@ const Sidebar: React.FC = () => {
   const logoColorClass = `bg-${settings.themeColor || 'indigo'}-600`;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col h-screen sticky top-0">
+    <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col h-screen sticky top-0 no-print">
       <div className="p-6 border-b border-gray-100 flex items-center gap-2">
         {settings.logoUrl ? (
             <img src={settings.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded" />

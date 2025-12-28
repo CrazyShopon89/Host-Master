@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { DataProvider, useData } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -11,20 +12,53 @@ import Team from './pages/Team';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import AIAssistant from './components/AIAssistant';
-import { Bell, LogOut, User } from 'lucide-react';
+import { 
+  Bell, 
+  LogOut, 
+  User, 
+  X, 
+  CheckCircle2, 
+  AlertCircle, 
+  AlertTriangle, 
+  Info, 
+  Clock,
+  Check
+} from 'lucide-react';
+import { Notification } from './types';
 
 // Header Component
 const Header: React.FC = () => {
   const { notifications, markNotificationRead, settings } = useData();
   const { user, logout } = useAuth();
   const unreadCount = notifications.filter(n => !n.read).length;
-  const [showNotifs, setShowNotifs] = React.useState(false);
-  const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   if (!user) return null;
 
+  const getNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'success': return <CheckCircle2 size={18} className="text-green-500" />;
+      case 'error': return <AlertCircle size={18} className="text-red-500" />;
+      case 'warning': return <AlertTriangle size={18} className="text-yellow-500" />;
+      default: return <Info size={18} className="text-blue-500" />;
+    }
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    markNotificationRead(n.id);
+    setSelectedNotification(n);
+    setShowNotifs(false);
+  };
+
+  const handleMarkAllRead = () => {
+    notifications.filter(n => !n.read).forEach(n => markNotificationRead(n.id));
+  };
+
   return (
-    <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-30 no-print">
        {/* Mobile Menu Trigger */}
        <button className="md:hidden text-gray-600">
            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -43,29 +77,52 @@ const Header: React.FC = () => {
               </button>
 
               {showNotifs && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-40">
-                    <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center">
-                        <span className="font-semibold text-sm">Notifications</span>
-                        <span className="text-xs text-gray-400">{unreadCount} unread</span>
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-40 animate-slide-up">
+                    <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                        <span className="font-bold text-sm text-gray-800">Notifications</span>
+                        <button 
+                          onClick={handleMarkAllRead}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-wider transition-colors"
+                        >
+                          Mark all read
+                        </button>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto no-scrollbar">
                         {notifications.length === 0 ? (
-                            <div className="p-4 text-center text-xs text-gray-400">No notifications</div>
+                            <div className="p-8 text-center">
+                                <Bell size={32} className="mx-auto text-gray-200 mb-2" />
+                                <p className="text-xs text-gray-400">Everything is up to date.</p>
+                            </div>
                         ) : (
                             notifications.map(n => (
                                 <div 
                                     key={n.id} 
-                                    onClick={() => markNotificationRead(n.id)}
-                                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 ${!n.read ? `bg-${settings.themeColor}-50/50` : ''}`}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 flex gap-3 transition-colors ${!n.read ? 'bg-indigo-50/30' : ''}`}
                                 >
-                                    <p className={`text-sm ${n.type === 'error' ? 'text-red-600' : n.type === 'warning' ? 'text-yellow-600' : 'text-gray-800'}`}>
-                                        {n.title}
-                                    </p>
-                                    <p className="text-xs text-gray-500 mt-1 truncate">{n.message}</p>
+                                    <div className="mt-0.5">{getNotificationIcon(n.type)}</div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start gap-2">
+                                            <p className={`text-sm font-semibold truncate ${!n.read ? 'text-gray-900' : 'text-gray-600'}`}>
+                                                {n.title}
+                                            </p>
+                                            {!n.read && <div className="w-2 h-2 rounded-full bg-indigo-600 mt-1.5 shrink-0"></div>}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                                        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                            <Clock size={10} />
+                                            {new Date(n.date).toLocaleDateString()} at {new Date(n.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
                                 </div>
                             ))
                         )}
                     </div>
+                    {notifications.length > 0 && (
+                      <div className="px-4 py-2 border-t border-gray-50 text-center">
+                        <button className="text-xs font-medium text-gray-500 hover:text-gray-800">View all alerts</button>
+                      </div>
+                    )}
                 </div>
               )}
            </div>
@@ -102,6 +159,52 @@ const Header: React.FC = () => {
               )}
            </div>
        </div>
+
+       {/* Notification Detail Modal */}
+       {selectedNotification && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 no-print">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                  <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl bg-white shadow-sm border border-gray-100`}>
+                        {getNotificationIcon(selectedNotification.type)}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900 leading-tight">{selectedNotification.title}</h2>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{selectedNotification.type} alert</span>
+                      </div>
+                  </div>
+                  <button onClick={() => setSelectedNotification(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                      <X size={20} />
+                  </button>
+              </div>
+              <div className="p-8">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedNotification.message}
+                  </p>
+                  
+                  <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={14} />
+                      Received on {new Date(selectedNotification.date).toLocaleString()}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Check size={14} className="text-green-500" />
+                      Status: Read
+                    </div>
+                  </div>
+              </div>
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end">
+                <button 
+                  onClick={() => setSelectedNotification(null)}
+                  className={`px-8 py-2.5 bg-${settings.themeColor}-600 hover:bg-${settings.themeColor}-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95`}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+         </div>
+       )}
     </header>
   );
 };
@@ -124,7 +227,7 @@ const Layout: React.FC = () => {
             <Sidebar />
             <div className="flex-1 flex flex-col min-w-0">
                 <Header />
-                <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
+                <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden no-scrollbar">
                     <Routes>
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/clients" element={<Clients />} />

@@ -1,15 +1,12 @@
+
 import React, { useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import StatCard from '../components/StatCard';
 import { 
     Users, 
-    DollarSign, 
-    Euro, 
-    PoundSterling, 
-    IndianRupee, 
     Wallet, 
     AlertCircle, 
-    CheckCircle 
+    CheckCircle
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -36,21 +33,18 @@ const Dashboard: React.FC = () => {
     return { totalClients, totalRevenue, overdue, upcomingRenewals, statusData };
   }, [records]);
 
-  // Logic to auto-change the icon based on settings.currency
-  const getRevenueIcon = () => {
-      const cur = settings.currency;
-      if (cur === '$') return DollarSign;
-      if (cur === '€') return Euro;
-      if (cur === '£') return PoundSterling;
-      if (cur === '₹') return IndianRupee;
-      return Wallet; // Default fallback if currency is custom
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-        <span className="text-sm text-gray-500">Last updated: Just now</span>
+        <div>
+            <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
+            <p className="text-sm text-gray-500">Welcome back to your administration panel</p>
+        </div>
+        <div className="flex items-center gap-3">
+             <span className="text-xs text-gray-400 bg-white border border-gray-100 px-3 py-1.5 rounded-lg shadow-sm font-medium">
+               Last active: Just now
+             </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -64,14 +58,14 @@ const Dashboard: React.FC = () => {
         <StatCard 
           title="Expected Revenue" 
           value={`${settings.currency}${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-          icon={getRevenueIcon()} 
+          icon={Wallet} 
           color="green" 
         />
         <StatCard 
           title="Upcoming Renewals" 
           value={stats.upcomingRenewals} 
           icon={AlertCircle} 
-          trend="Action needed"
+          trend="Action suggested"
           color="yellow" 
         />
         <StatCard 
