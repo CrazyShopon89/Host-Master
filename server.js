@@ -9,8 +9,7 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-// Vercel/Serverless Fix: SQLite needs a writable path. 
-// Note: Data in /tmp is NOT persistent across requests on Vercel.
+// Vercel/Serverless Persistence Detection
 const isVercel = process.env.VERCEL === '1';
 const DB_PATH = isVercel 
     ? path.join('/tmp', 'hostmaster.db') 
@@ -20,24 +19,20 @@ const DB_PATH = isVercel
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
 app.use(cors());
+
+// Force .tsx and .ts files to be served as JavaScript
+express.static.mime.define({'application/javascript': ['tsx', 'ts']});
 app.use(express.static(path.join(__dirname)));
 
 // API Key Integrity Check
 if (!process.env.API_KEY) {
-    console.warn('\x1b[33m%s\x1b[0m', '⚠️  WARNING: API_KEY is missing from Environment Variables.');
-}
-
-if (isVercel) {
-    console.warn('\x1b[31m%s\x1b[0m', '🚨 VERCEL DETECTED: SQLite data will NOT persist between sessions. Use a hosted DB for production.');
+    console.warn('\x1b[33m%s\x1b[0m', '⚠️  WARNING: API_KEY is missing from Project Settings.');
 }
 
 // Initialize Database
 const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) {
-        console.error('❌ Database connection error:', err.message);
-    } else {
-        console.log('✅ SQLite Database ready at: ' + DB_PATH);
-    }
+    if (err) console.error('❌ Database connection error:', err.message);
+    else console.log('✅ SQLite Database ready at: ' + DB_PATH);
 });
 
 db.serialize(() => {
@@ -67,7 +62,6 @@ db.serialize(() => {
 });
 
 // --- API ROUTES ---
-
 app.get('/api/records', (req, res) => {
     db.all("SELECT * FROM records ORDER BY serialNumber DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -80,16 +74,13 @@ app.post('/api/records', (req, res) => {
     const stmt = db.prepare(`INSERT INTO records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     stmt.run(r.id, r.serialNumber, r.clientName, r.website, r.email, r.phone, r.storageGB, r.setupDate, r.validationDate, r.amount, r.status, r.invoiceNumber, r.invoiceDate, r.paymentStatus, r.invoiceStatus, r.paymentMethod, function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id: r.id });
+        res.json({ success: true });
     });
 });
 
 app.put('/api/records/:id', (req, res) => {
     const r = req.body;
-    db.run(`UPDATE records SET 
-        clientName=?, website=?, email=?, phone=?, storageGB=?, setupDate=?, validationDate=?, 
-        amount=?, status=?, invoiceNumber=?, invoiceDate=?, paymentStatus=?, invoiceStatus=?, paymentMethod=?
-        WHERE id=?`, 
+    db.run(`UPDATE records SET clientName=?, website=?, email=?, phone=?, storageGB=?, setupDate=?, validationDate=?, amount=?, status=?, invoiceNumber=?, invoiceDate=?, paymentStatus=?, invoiceStatus=?, paymentMethod=? WHERE id=?`, 
         [r.clientName, r.website, r.email, r.phone, r.storageGB, r.setupDate, r.validationDate, r.amount, r.status, r.invoiceNumber, r.invoiceDate, r.paymentStatus, r.invoiceStatus, r.paymentMethod, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -124,31 +115,20 @@ app.post('/api/send-email', async (req, res) => {
     const { to, subject, body, config } = req.body;
     try {
         let transporter = nodemailer.createTransport({
-            host: config.smtpHost,
-            port: config.smtpPort,
-            secure: config.smtpEncryption === 'SSL/TLS',
+            host: config.smtpHost, port: config.smtpPort, secure: config.smtpEncryption === 'SSL/TLS',
             auth: { user: config.smtpUser, pass: config.smtpPass },
         });
-        await transporter.sendMail({
-            from: `"${config.senderName}" <${config.senderEmail}>`,
-            to, subject, text: body,
-        });
+        await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
         res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// SPA Support
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Export for Vercel, listen for local
 if (!isVercel) {
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 HostMaster Local Server Active on port ${PORT}`);
-    });
+    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Local HostMaster ready on port ${PORT}`));
 }
 
 module.exports = app;
