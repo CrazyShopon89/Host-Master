@@ -9,30 +9,38 @@ const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-// Vercel/Serverless Persistence Detection
 const isVercel = process.env.VERCEL === '1';
 const DB_PATH = isVercel 
     ? path.join('/tmp', 'hostmaster.db') 
     : path.join(__dirname, 'hostmaster.db');
 
-// Middleware
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
 app.use(cors());
 
-// Force .tsx and .ts files to be served as JavaScript
-express.static.mime.define({'application/javascript': ['tsx', 'ts']});
-app.use(express.static(path.join(__dirname)));
+// --- CRITICAL FIX FOR MIME TYPE ERROR ---
+// Captures index.tsx and other source files to serve them as JavaScript
+app.get(['/*.tsx', '/*.ts'], (req, res) => {
+    const filename = req.path.split('/').pop();
+    const filePath = path.join(__dirname, filename);
+    
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(filePath);
+});
 
-// API Key Integrity Check
-if (!process.env.API_KEY) {
-    console.warn('\x1b[33m%s\x1b[0m', '⚠️  WARNING: API_KEY is missing from Project Settings.');
-}
+app.use(express.static(path.join(__dirname), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+        }
+    }
+}));
 
 // Initialize Database
 const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) console.error('❌ Database connection error:', err.message);
-    else console.log('✅ SQLite Database ready at: ' + DB_PATH);
+    if (err) console.error('❌ Database error:', err.message);
+    else console.log('✅ SQLite Database ready');
 });
 
 db.serialize(() => {
@@ -61,7 +69,7 @@ db.serialize(() => {
     )`);
 });
 
-// --- API ROUTES ---
+// API Routes
 app.get('/api/records', (req, res) => {
     db.all("SELECT * FROM records ORDER BY serialNumber DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -111,24 +119,12 @@ app.post('/api/settings', (req, res) => {
     });
 });
 
-app.post('/api/send-email', async (req, res) => {
-    const { to, subject, body, config } = req.body;
-    try {
-        let transporter = nodemailer.createTransport({
-            host: config.smtpHost, port: config.smtpPort, secure: config.smtpEncryption === 'SSL/TLS',
-            auth: { user: config.smtpUser, pass: config.smtpPass },
-        });
-        await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 if (!isVercel) {
-    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Local HostMaster ready on port ${PORT}`));
+    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 HostMaster ready on port ${PORT}`));
 }
 
 module.exports = app;
