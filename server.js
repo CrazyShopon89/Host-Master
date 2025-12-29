@@ -14,23 +14,27 @@ app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
 /**
- * FAIL-SAFE MIME HANDLING
- * Even if .htaccess fails, Node.js will force the correct MIME type here.
+ * CRITICAL MIME TYPE OVERRIDE
+ * Forces the browser to treat .ts and .tsx files as JavaScript.
+ * This fixes the "Blank Screen" issue in environments where the server
+ * doesn't recognize TypeScript extensions.
  */
 app.use((req, res, next) => {
-    if (req.url.endsWith('.tsx') || req.url.endsWith('.ts')) {
+    const ext = path.extname(req.url);
+    if (ext === '.tsx' || ext === '.ts') {
         res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
         res.setHeader('X-Content-Type-Options', 'nosniff');
     }
     next();
 });
 
-// Serve static files
+// Serve static files with explicit header setting
 app.use(express.static(path.join(__dirname), {
     setHeaders: (res, filePath) => {
         const ext = path.extname(filePath);
         if (ext === '.tsx' || ext === '.ts') {
             res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
         }
     },
     index: 'index.html'
@@ -38,7 +42,7 @@ app.use(express.static(path.join(__dirname), {
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) console.error('❌ Database error:', err.message);
-    else console.log('✅ SQLite Database ready');
+    else console.log('✅ SQLite Database ready at:', DB_PATH);
 });
 
 db.serialize(() => {
@@ -125,14 +129,21 @@ app.post('/api/send-email', async (req, res) => {
         });
         await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
         res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) { 
+        console.error('SMTP Error:', error);
+        res.status(500).json({ error: error.message }); 
+    }
 });
 
-// SPA Support
+/**
+ * SPA FALLBACK
+ * Captures all non-API routes and serves index.html.
+ * Essential for React Router to function on direct page refreshes.
+ */
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server listening on port ${PORT}`);
+    console.log(`🚀 HostMaster Server running on port ${PORT}`);
 });
