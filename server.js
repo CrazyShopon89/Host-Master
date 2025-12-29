@@ -4,6 +4,7 @@ const compression = require('compression');
 const sqlite3 = require('sqlite3').verbose();
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const fs = require('fs');
 const app = express();
 
 const PORT = process.env.PORT || 8080;
@@ -13,65 +14,84 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(cors());
 
-/**
- * CRITICAL MIME TYPE OVERRIDE
- * Forces the browser to treat .ts and .tsx files as JavaScript.
- * This fixes the "Blank Screen" issue in environments where the server
- * doesn't recognize TypeScript extensions.
- */
+// --- 1. MIME Type Fix Middleware ---
+// Ensures browsers interpret .tsx files as JavaScript modules
 app.use((req, res, next) => {
     const ext = path.extname(req.url);
     if (ext === '.tsx' || ext === '.ts') {
         res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
     }
     next();
 });
 
-// Serve static files with explicit header setting
+// --- 2. Static File Serving ---
 app.use(express.static(path.join(__dirname), {
     setHeaders: (res, filePath) => {
         const ext = path.extname(filePath);
+        // Double-check headers for static files
         if (ext === '.tsx' || ext === '.ts') {
             res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-            res.setHeader('X-Content-Type-Options', 'nosniff');
         }
     },
     index: 'index.html'
 }));
 
+// --- 3. Robust Database Connection ---
 const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) console.error('❌ Database error:', err.message);
-    else console.log('✅ SQLite Database ready at:', DB_PATH);
+    if (err) {
+        console.error('❌ Database connection failed:', err.message);
+    } else {
+        console.log('✅ SQLite Database connected at:', DB_PATH);
+        // Enable WAL mode for better concurrency (prevents "database locked" errors)
+        db.run('PRAGMA journal_mode = WAL;', (err) => {
+            if (err) console.warn('⚠️ Could not set WAL mode:', err.message);
+        });
+    }
 });
 
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS records (
-        id TEXT PRIMARY KEY,
-        serialNumber INTEGER,
-        clientName TEXT,
-        website TEXT,
-        email TEXT,
-        phone TEXT,
-        storageGB INTEGER,
-        setupDate TEXT,
-        validationDate TEXT,
-        amount REAL,
-        status TEXT,
-        invoiceNumber TEXT,
-        invoiceDate TEXT,
-        paymentStatus TEXT,
-        invoiceStatus TEXT,
-        paymentMethod TEXT
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT)`);
-});
+// Initialize Schema from file if needed, or inline
+const initDb = () => {
+    // Try to read schema.sql if it exists, otherwise use inline defaults
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        db.exec(schema, (err) => {
+            if (err) console.error('Error executing schema.sql:', err.message);
+            else console.log('✅ Schema loaded from schema.sql');
+        });
+    } else {
+        db.serialize(() => {
+            db.run(`CREATE TABLE IF NOT EXISTS records (
+                id TEXT PRIMARY KEY,
+                serialNumber INTEGER,
+                clientName TEXT,
+                website TEXT,
+                email TEXT,
+                phone TEXT,
+                storageGB INTEGER,
+                setupDate TEXT,
+                validationDate TEXT,
+                amount REAL,
+                status TEXT,
+                invoiceNumber TEXT,
+                invoiceDate TEXT,
+                paymentStatus TEXT,
+                invoiceStatus TEXT,
+                paymentMethod TEXT
+            )`);
+            db.run(`CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT)`);
+        });
+    }
+};
 
-// API Endpoints
+initDb();
+
+// --- 4. API Routes ---
+
 app.get('/api/records', (req, res) => {
     db.all("SELECT * FROM records ORDER BY serialNumber DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        res.json(rows || []);
     });
 });
 
@@ -82,6 +102,7 @@ app.post('/api/records', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
+    stmt.finalize();
 });
 
 app.put('/api/records/:id', (req, res) => {
@@ -130,20 +151,16 @@ app.post('/api/send-email', async (req, res) => {
         await transporter.sendMail({ from: `"${config.senderName}" <${config.senderEmail}>`, to, subject, text: body });
         res.json({ success: true });
     } catch (error) { 
-        console.error('SMTP Error:', error);
+        console.error("SMTP Error:", error);
         res.status(500).json({ error: error.message }); 
     }
 });
 
-/**
- * SPA FALLBACK
- * Captures all non-API routes and serves index.html.
- * Essential for React Router to function on direct page refreshes.
- */
+// --- 5. Catch-All for SPA ---
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 HostMaster Server running on port ${PORT}`);
+    console.log(`🚀 HostMaster Server active on port ${PORT}`);
 });
